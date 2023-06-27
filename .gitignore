@@ -1,0 +1,6 @@
+datasets/
+nohup.out
+nohup copy.out
+logs/
+__pycache__
+out/
