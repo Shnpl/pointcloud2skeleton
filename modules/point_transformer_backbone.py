@@ -20,34 +20,8 @@ from einops import rearrange
 # Modified from "https://github.com/qq456cvb/Point-Transformers/tree/master/models/Hengshuang"
 
 # reference https://github.com/yanx27/Pointnet_Pointnet2_pytorch, modified by Yang You
-
-def square_distance(src:Tensor, dst:Tensor):
-    """
-    Calculate Euclid distance between each two points.
-    src^T * dst = xn * xm + yn * ym + zn * zm；
-    sum(src^2, dim=-1) = xn*xn + yn*yn + zn*zn;
-    sum(dst^2, dim=-1) = xm*xm + ym*ym + zm*zm;
-    dist = (xn - xm)^2 + (yn - ym)^2 + (zn - zm)^2
-         = sum(src**2,dim=-1)+sum(dst**2,dim=-1)-2*src^T*dst
-    Input:
-        src: source points, [B, N, C]
-        dst: target points, [B, M, C]
-    Output:
-        dist: per-point square distance, [B, N, M]
-    """
-    # batchsize,n,_ = src.shape
-
-    # distances = torch.zeros(batchsize, n, n)
-    sum_sq_src = torch.sum(src**2,dim=-1).unsqueeze(2)
-    sum_sq_dst = torch.sum(dst**2,dim=-1).unsqueeze(1)
-    dists = torch.sqrt(sum_sq_src+sum_sq_dst-2*torch.bmm(src,dst.permute(0,2,1)))
-    return dists
-    # for i in range(n):
-    #     diff = src[:, i, None] - dst[:, None]  # 广播操作
-    # distance_sq = torch.sum(diff ** 2, dim=-1)
-    # distances[:, i] = distance_sq
-    # return torch.sum((src[:, :, None] - dst[:, None]) ** 2, dim=-1)
-
+sys.path.append(".")
+from modules.utils import square_distance
 
 def index_points(points, idx):
     """
@@ -211,7 +185,7 @@ class PointNetSetAbstraction(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, d_points, d_model, k,MHA_enable =True) -> None:
+    def __init__(self, d_points, d_model, k,MHA_enable =False) -> None:
         super().__init__()
         self.MHA_enable = MHA_enable
         if self.MHA_enable:
@@ -286,10 +260,10 @@ class TransitionDown(nn.Module):
 
 
 class PointTransformerBackbone(nn.Module):
-    def __init__(self, num_points = 1024):
+    def __init__(self, num_points = 2048):
         super().__init__()
         npoints = num_points
-        nblocks = 5
+        nblocks = 4
         nneighbor = 20   # 16 for default
         d_points = 3  # dim for input points
         transformer_dim = 768
@@ -306,7 +280,7 @@ class PointTransformerBackbone(nn.Module):
             self.transition_downs.append(
                 TransitionDown(npoints // 4 ** (i + 1), nneighbor, [channel // 2 + 3, channel, channel]))
             self.transformers.append(TransformerBlock(channel, transformer_dim, nneighbor))
-            self.transformers.append(TransformerBlock(channel, transformer_dim, nneighbor))
+            #self.transformers.append(TransformerBlock(channel, transformer_dim, nneighbor))
         self.nblocks = nblocks
     def forward(self, x):
         x = x.permute(0,2,1)
@@ -315,9 +289,9 @@ class PointTransformerBackbone(nn.Module):
 
         for i in range(self.nblocks):
             xyz, points = self.transition_downs[i](xyz, points)
-            points = self.transformers[2*i](xyz, points)[0]
-            points = self.transformers[2*i+1](xyz, points)[0]
-        points = torch.squeeze(points)
+            points = self.transformers[i](xyz, points)[0]
+            # points = self.transformers[2*i+1](xyz, points)[0]
+        points = points.mean(1)
         return points
 
 

@@ -10,14 +10,12 @@ from torch.utils.data import Dataset,DataLoader
 import cv2
 import numpy as np
 import time
-from modules.dgcnn_backbone import Estimate3DPoseModule
-from modules.pku_mmd_dataset import _PKU_MMD_Dataset as PKU_MMD_Dataset
 from modules.ntu_rgbd_dataset import _NTU_RGBD_Dataset as NTU_RGBD_Dataset
 
 if __name__ == "__main__":
     # net = Estimate3DPoseModule(n=2048)
-    net = torch.load("logs/0617/14_net.pt").to(torch.device('cuda'))
-    dataset:Dataset = NTU_RGBD_Dataset(select_length =8,point_number=2048)
+    net = torch.load("logs/Jun_27-98e47faa/37_net.pt").to(torch.device('cuda'))
+    dataset:Dataset = NTU_RGBD_Dataset(select_length =1,point_number=2048,train=False,small_size_dataset=True)
     dataloader = DataLoader(dataset,batch_size=1,shuffle=True)
     for it_count,data in enumerate(dataloader):
         # Read Data

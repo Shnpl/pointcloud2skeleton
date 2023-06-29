@@ -11,10 +11,10 @@ class MPJPELoss(nn.Module):
         for i in range(bs):
             pred_sk = pred_joints[i]
             gt_sk = gt_joints[i]
-            for j in range(1,point_num):
+            for j in range(point_num):
                 loss += torch.norm(pred_sk[j] - gt_sk[j])/torch.norm(gt_sk[j])
         loss /= bs
-        loss /= (point_num-1)
+        loss /= point_num
         return loss
 class JointLengthLoss(nn.Module):
     def __init__(self,use_hand = False) -> None:
@@ -127,3 +127,45 @@ class SymmetryLoss(nn.Module):
             loss += diff_r
         loss /= bs
         return loss
+class KLDiscretLoss(nn.Module):
+    """
+    "https://github.com/leeyegy/SimDR"
+    """
+    def __init__(self):
+        super(KLDiscretLoss, self).__init__()
+        self.LogSoftmax = nn.LogSoftmax(dim=1)  # [B,LOGITS]
+        self.dec_softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim=1)
+        self.criterion_ = nn.KLDivLoss(reduction='none')
+
+    def criterion(self, dec_outs, labels):
+        # 
+        pred = self.dec_softmax(dec_outs)
+        scores = self.LogSoftmax(dec_outs)
+        labels = self.softmax(labels)
+        loss = torch.mean(self.criterion_(scores, labels), dim=1)
+        return loss
+
+    def forward(self, output_x, output_y,output_z, target_x, target_y,target_z,target_weight):
+        num_joints = output_x.size(1)
+        # print(num_joints)
+        losses_x = []
+        losses_y = []
+        losses_z = []
+        for idx in range(num_joints):
+            coord_x_pred = output_x[:, idx]
+            coord_y_pred = output_y[:, idx]
+            coord_z_pred = output_z[:, idx]
+
+            coord_x_gt = target_x[:, idx]
+            coord_y_gt = target_y[:, idx]
+            coord_z_gt = target_z[:, idx]
+            weight = target_weight[idx]
+            losses_x.append(self.criterion(coord_x_pred, coord_x_gt).mul(weight))
+            losses_y.append(self.criterion(coord_y_pred, coord_y_gt).mul(weight))
+            losses_z.append(self.criterion(coord_z_pred, coord_z_gt).mul(weight))
+        loss_x = torch.mean(torch.max(torch.stack(losses_x),dim=0)[0])
+        loss_y = torch.mean(torch.max(torch.stack(losses_y),dim=0)[0])
+        loss_z = torch.mean(torch.max(torch.stack(losses_z),dim=0)[0])
+        loss = loss_x+loss_y+loss_z
+        return loss / num_joints

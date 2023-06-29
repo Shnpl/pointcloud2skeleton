@@ -1,66 +1,51 @@
 import torch
 import pytorch_lightning as pl
+import sys
 from torch.utils.data import DataLoader,Dataset
 import torchvision
 import open3d as o3d
 import os
 import numpy as np
 from PIL import Image
-
+sys.path.append('.')
 from modules.utils import read_and_preprocess_pointcloud_data,read_skeleton_data
 
-# class NTU_RGBD_DataModule(pl.LightningDataModule):
-#     def __init__(self,
-#                  data_dir: str = 'datasets/NTU-RGB+D',
-#                  batch_size: int = 64,
-#                  num_workers: int = 8):
-#         super().__init__()
-#         self.data_dir = data_dir
-#         self.batch_size = batch_size
-#         self.num_workers = num_workers
-        
-#         # self.transform = transforms.Compose([
-#         #     transforms.ToTensor(),
-#         #     transforms.Normalize((0.1307,), (0.3081,))
-#         # ])
+def calibrate(pcd_numpy):
+    fx_o = 525   # 相机水平方向的焦距
+    fy_o = 525   # 相机垂直方向的焦距
+    cx_o = 319.5   # 相机水平方向的光心（principal point）x坐标
+    cy_o = 239.5  # 相机垂直方向的光心（principal point）y坐标
+    fx = -371.35623250663923
+    fy = 370.4995539322389
+    cx = 256.32786847500023
+    cy = 208.58669761762442
+    scale = 971
+    scale_o = 5000
+    N,_ =pcd_numpy.shape
+    x_from_depth_o = pcd_numpy[:,0]
+    y_from_depth_o = pcd_numpy[:,1]
+    z_from_depth_o = -pcd_numpy[:,2]
+    z_from_depth_rec = z_from_depth_o*scale_o/scale
 
-#         # self.dims is returned when you call dm.size()
-#         # Setting default dims here because we know them.
-#         # Could optionally be assigned dynamically in dm.setup()
-#         # self.dims = (1, 28, 28)
-#         # self.num_classes = 13
+    x_from_depth_pix_rec = -(x_from_depth_o * fx_o / z_from_depth_o)+cx_o
+    x_from_depth_rec = -(x_from_depth_pix_rec - cx) * z_from_depth_rec / fx
 
-#     def prepare_data(self):
-#         # download or anything like that
-#         pass
+    y_from_depth_pix_rec = -(y_from_depth_o * fy_o / z_from_depth_o)+cy_o
+    y_from_depth_rec = -(y_from_depth_pix_rec - cy) * z_from_depth_rec / fy
 
-#     def setup(self, stage=None):
-#         # Assign train/val datasets for use in dataloaders
-#         if stage == 'fit' or stage is None:
-#             self.PKU_Dataset_train = _PKU_MMD_Dataset(
-#                 data_dir=self.data_dir,
-#                 train=True)
-#             self.PKU_Dataset_val = _PKU_MMD_Dataset(
-#             data_dir=self.data_dir,
-#             train=False)
-#         # Assign test dataset for use in dataloader(s)
-#         # if stage == 'test' or stage is None:
-#         #     self.mnist_test = MNIST(self.data_dir, train=False, transform=self.transform)
-#         pass
-#     def train_dataloader(self):
-#         return DataLoader(self.PKU_Dataset_train, batch_size=self.batch_size, num_workers=self.num_workers)
+    out = np.zeros((N,3))
+    out[:,0] = x_from_depth_rec
+    out[:,1] = y_from_depth_rec
+    out[:,2] = z_from_depth_rec
+    return out
 
-#     def val_dataloader(self):
-#         return DataLoader(self.PKU_Dataset_val, batch_size=self.batch_size, num_workers=self.num_workers)
-#     # def test_dataloader(self):
-#     #     return DataLoader(self.PKU_Dataset_val, batch_size=self.batch_size, num_workers=self.num_workers)
 
 class _NTU_RGBD_Dataset(Dataset):
     def __init__(self,
                  data_dir='datasets/NTU-RGB+D',
                  train = True,
                  datatype = ['pointcloud','skeleton'],
-                 select_length = 128,
+                 select_length = 1e8,
                  point_number = 2048,
                  small_size_dataset = False,
                  pre_downsample = True
@@ -78,17 +63,20 @@ class _NTU_RGBD_Dataset(Dataset):
             with open(dataset_desc_path,'r') as f:
                 self.data = f.readlines()
         else:
-            test_dir = os.path.join(self.datadir,'pointcloud2048','test')
+            if small_size_dataset:
+                dataset_desc_path = os.path.join(self.datadir,"train_data_small.txt")
+            else:
+                test_dir = os.path.join(self.datadir,'pointcloud2048','test')
 
-            raw_type_dir = os.listdir(test_dir)
-            type_dir = [os.path.join(test_dir,dirname) for dirname in raw_type_dir if os.path.isdir(os.path.join(test_dir,dirname))]
-            self.data = []
-            for dir_path in type_dir:
-                actions = os.listdir(dir_path)
-                filtered_actions = [action for action in actions if int(action.split('A')[-1]) < 50]
+                raw_type_dir = os.listdir(test_dir)
+                type_dir = [os.path.join(test_dir,dirname) for dirname in raw_type_dir if os.path.isdir(os.path.join(test_dir,dirname))]
+                self.data = []
+                for dir_path in type_dir:
+                    actions = os.listdir(dir_path)
+                    filtered_actions = [action for action in actions if int(action.split('A')[-1]) < 50]
 
-                actions = [os.path.join(dir_path,action) for action in filtered_actions]
-                self.data.extend(actions)
+                    actions = [os.path.join(dir_path,action) for action in filtered_actions]
+                    self.data.extend(actions)
         self.len = len(self.data)
         self.datatype = datatype
         self.pre_downsample = pre_downsample
@@ -128,6 +116,7 @@ class _NTU_RGBD_Dataset(Dataset):
                     pcd = o3d.io.read_point_cloud(path)
                     if self.pre_downsample:
                         pcd_numpy = np.asarray(pcd.points)
+                        pcd_numpy = pcd_numpy[[not np.all(pcd_numpy[i] == 0) for i in range(pcd_numpy.shape[0])], :]
                         N,_ = pcd_numpy.shape
                         if N < self.point_number:
                             fill_num = self.point_number-N
@@ -137,8 +126,12 @@ class _NTU_RGBD_Dataset(Dataset):
                             pcd_numpy = np.concatenate((pcd_numpy,fill_pt),axis = 0)
                     else:
                         pcd_numpy = read_and_preprocess_pointcloud_data(pcd,downsample_number=self.point_number)
+                    
+                    pcd_numpy= calibrate(pcd_numpy)
+                    
                     pointclouds.append(pcd_numpy)
                 pointclouds = np.stack(pointclouds)
+
                 data_dict.update({"pointcloud":pointclouds})
         except:
             data_dict = None

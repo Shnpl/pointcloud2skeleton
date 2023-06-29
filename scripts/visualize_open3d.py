@@ -33,15 +33,15 @@ def read_and_preprocess_pointcloud_data(pcd,visualize = False,downsample_number 
                                         mesh_show_back_face=False)
     # Voxel DownSampling
     pcd = pcd.voxel_down_sample(voxel_size=0.001)
-    if visualize:
-        o3d.visualization.draw_geometries([pcd], window_name='Open3D downSample', width=1920, height=1080, left=50, top=50,
-                                        point_show_normal=False, mesh_show_wireframe=False, mesh_show_back_face=False)
+    # if visualize:
+    #     o3d.visualization.draw_geometries([pcd], window_name='Open3D downSample', width=1920, height=1080, left=50, top=50,
+    #                                     point_show_normal=False, mesh_show_wireframe=False, mesh_show_back_face=False)
     # Remove abnormals
     cl, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
     pcd = pcd.select_by_index(ind)
-    if visualize:
-        o3d.visualization.draw_geometries([pcd], window_name='Open3D downSample', width=1920, height=1080, left=50, top=50,
-                                        point_show_normal=False, mesh_show_wireframe=False, mesh_show_back_face=False)
+    # if visualize:
+    #     o3d.visualization.draw_geometries([pcd], window_name='Open3D downSample', width=1920, height=1080, left=50, top=50,
+    #                                     point_show_normal=False, mesh_show_wireframe=False, mesh_show_back_face=False)
     pcd_numpy = np.asarray(pcd.points)   
     # FPS
     pcd_numpy = np.asarray(pcd.points)
@@ -54,5 +54,5 @@ def read_and_preprocess_pointcloud_data(pcd,visualize = False,downsample_number 
     
     return pcd_numpy
 
-pcd = o3d.io.read_point_cloud("S001C001P008R002A060/MDepth-00000001.pcd")
-read_and_preprocess_pointcloud_data(pcd,downsample_number=1024,visualize=True)
+pcd = o3d.io.read_point_cloud("datasets/NTU-RGB+D/pointcloud2048/train/S001C001P001R001A001/MDepth-00000060.pcd")
+read_and_preprocess_pointcloud_data(pcd,downsample_number=2048,visualize=True)
