@@ -1,7 +1,7 @@
 import os
 import sys
-import copy
-import math
+import logging
+
 import numpy as np
 import torch
 from torch import Tensor
@@ -282,6 +282,7 @@ class PointTransformerBackbone(nn.Module):
             self.transformers.append(TransformerBlock(channel, transformer_dim, nneighbor))
             #self.transformers.append(TransformerBlock(channel, transformer_dim, nneighbor))
         self.nblocks = nblocks
+        logging.info(self)
     def forward(self, x):
         x = x.permute(0,2,1)
         xyz = x[..., :3]

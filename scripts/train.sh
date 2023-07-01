@@ -1,2 +1,2 @@
 #!/bin/bash
-nohup python scripts/train.py 2>&1 &
+python scripts/train.py --exp_name PointNet_Exp_1 --backbone_type pointnet

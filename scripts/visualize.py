@@ -53,35 +53,36 @@ def visualize(np_pred_sk_data,np_gt_sk_data,pc_original = None):
     ax.set_zlim(-1,1)
 
     ax.set_aspect('equal')
-
+    
     x_gt_skeleton = np_gt_sk_data[:,0]
     y_gt_skeleton = np_gt_sk_data[:,1]
     z_gt_skeleton = np_gt_sk_data[:,2]
+
+    x_gt_bias = float(x_gt_skeleton[0])
+    y_gt_bias = float(y_gt_skeleton[0])
+    z_gt_bias = float(z_gt_skeleton[0])
+    x_gt_skeleton -= x_gt_bias
+    y_gt_skeleton -= y_gt_bias
+    z_gt_skeleton -= z_gt_bias
 
 
     x_pred_skeleton = np_pred_sk_data[:,0]
     y_pred_skeleton = np_pred_sk_data[:,1]
     z_pred_skeleton = np_pred_sk_data[:,2]
 
-    # x_pc_calibrated = pc_calibrated[:,0]
-    # y_pc_calibrated = pc_calibrated[:,1]
-    # z_pc_calibrated = pc_calibrated[:,2]
+    x_pred_skeleton -= float(x_pred_skeleton[0])
+    y_pred_skeleton -= float(y_pred_skeleton[0])
+    z_pred_skeleton -= float(z_pred_skeleton[0])
 
 
     x_pc_original = pc_original[:,0]
     y_pc_original = pc_original[:,1]
     z_pc_original = pc_original[:,2]
 
-    # scale_x = max(x_pc_original)-min(x_pc_original)
-    # scale_y = max(y_pc_original)-min(y_pc_original)
-    # scale_z = max(z_pc_original)-min(z_pc_original)
-    # scale = 1/max(scale_x,scale_y,scale_z)
+    x_pc_original -= x_gt_bias
+    y_pc_original -= y_gt_bias
+    z_pc_original -= z_gt_bias
 
-    # x_pc_original = x_pc_original*scale
-    # y_pc_original = y_pc_original*scale
-    # z_pc_original = z_pc_original*scale
-
-    ax.view_init(elev=180, azim=-90)
 
     #gt
     ax.scatter(x_gt_skeleton, y_gt_skeleton, z_gt_skeleton,'blue',label='GT')
@@ -94,8 +95,7 @@ def visualize(np_pred_sk_data,np_gt_sk_data,pc_original = None):
         ax.text(x_pred_skeleton[i],y_pred_skeleton[i],z_pred_skeleton[i],i,size=5,color = 'red')
     draw_skeleton(ax,np_pred_sk_data,'red')
     #
-    # ax.scatter(x_pc_calibrated, y_pc_calibrated, z_pc_calibrated,color = 'yellow')
-    ax.scatter(x_pc_original, y_pc_original, z_pc_original,color = 'cyan',alpha=0.3)
+    #ax.scatter(x_pc_original, y_pc_original, z_pc_original,color = 'cyan',alpha=0.3)
 
     plt.show()
 

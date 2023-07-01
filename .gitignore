@@ -4,4 +4,3 @@ nohup copy.out
 logs/
 __pycache__
 out/
-misc/

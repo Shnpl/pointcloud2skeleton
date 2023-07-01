@@ -1,7 +1,8 @@
 import os
 import sys
 import copy
-import math
+import logging
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -38,7 +39,7 @@ class PointNetBackbone(nn.Module):
         self.max_pool = nn.AdaptiveMaxPool1d(1)
         self.avg_pool = nn.AdaptiveAvgPool1d(1)
         self.linear1 = nn.Linear(2048, 1024, bias=False)
-
+        logging.info(self)
     def forward(self, x):
         x1 = self.conv1(x)#->64
         x2 = self.conv2(x1)#->64

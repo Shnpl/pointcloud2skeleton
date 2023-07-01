@@ -2,11 +2,12 @@ import os
 import sys
 import copy
 import math
+import logging
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from modules.blocks import(
     TNetBlock,
     EdgeConvBlock
@@ -49,7 +50,7 @@ class DGCNNBackbone(nn.Module):
             nn.Conv1d(in_channels=2048,out_channels=1024,kernel_size=1),
             nn.ReLU()
         )
-
+        logging.info(self)
     def forward(self,x):
         #T-Net
         # b,c,N
